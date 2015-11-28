@@ -13,4 +13,9 @@ arduino system. I'll post details and sketches for those separately.
 The setup I have comprises a custom-built arduino controlled "multi
 plug", lights, a heater, a DHT11 sensor and other bits and bobs.
 
+As it stands, this stuff "works for me". The reason I put it here is
+to force myself to clean it up a bit. Expect rough edges, but please
+do not hesitate to contact me on reddit (BumblingBunny) if you have
+questions, suggestions, or other feed back.
+
 This project is in the public domain.

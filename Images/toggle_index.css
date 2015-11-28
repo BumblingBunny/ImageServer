@@ -1,0 +1,29 @@
+body {
+    background-color: #000000;
+    color: #fafafa;
+}
+.plug_icon {
+   border-top: 1px solid #f7f497;
+   background: #d0d665;
+   background: -webkit-gradient(linear, left top, left bottom, from(#9c563e), to(#d0d665));
+   background: -webkit-linear-gradient(top, #9c563e, #d0d665);
+   background: -moz-linear-gradient(top, #9c563e, #d0d665);
+   background: -ms-linear-gradient(top, #9c563e, #d0d665);
+   background: -o-linear-gradient(top, #9c563e, #d0d665);
+   padding: 4px 8px;
+   -webkit-border-radius: 0px;
+   -moz-border-radius: 0px;
+   border-radius: 15px;
+   -webkit-box-shadow: rgba(0,0,0,1) 0 1px 0;
+   -moz-box-shadow: rgba(0,0,0,1) 0 1px 0;
+   box-shadow: rgba(0,0,0,1) 0 1px 0;
+   vertical-align: middle;
+   width: 128px;
+   height: 128px;
+}
+.plug_button {
+    padding-right: 30px;
+}
+a img {
+    border: 0;
+}
