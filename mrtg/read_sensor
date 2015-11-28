@@ -1,0 +1,9 @@
+#!/bin/bash
+
+hum=$(echo "humidity" | nc localhost 3020)
+tem=$(echo "temperature" | nc localhost 3020)
+echo $hum
+echo $tem
+
+uptime | awk '{ print $3" "$4" "$5 }' | sed  's/,$//'
+echo "Storage"
