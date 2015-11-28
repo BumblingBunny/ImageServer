@@ -1,0 +1,94 @@
+#!/usr/bin/python
+import os
+import sys
+import time
+import socket
+import serial
+
+def log(*args):
+    print time.asctime(),
+    for arg in args:
+        print arg,
+    print ""
+
+def find_serial():
+    for j in ("USB", "ACM"):
+        for i in range(0, 9):
+            candidate = "/dev/tty%s%i" % (j,i)
+            if os.path.exists(candidate):
+                log("Choosing", candidate, "as my serial interface")
+                return candidate
+    raise Exception("No USB serial found")
+
+class PlugServer(object):
+    def __init__(self, port = 3019, tty=None):
+        self.port = port
+        if tty is None:
+            tty = find_serial()
+        self.serial = serial.Serial(tty, 9600, timeout=2)
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.server.setblocking(0)
+
+    def serial_command(self, cmd):
+        log("Sending command", cmd)
+        result = []
+        # Send reset char first
+        self.serial.write("*")
+        # Then send supposed command chars
+        self.serial.write(cmd)
+        while True:
+            line = self.serial.readline()
+            if not line:
+                break
+            if "--END--" in line:
+                break
+
+            result.append(line)
+        return result
+
+    def close(self):
+        self.server.shutdown(socket.SHUT_RDWR)
+        self.server.close()
+        self.serial.close()
+
+    def run_forever(self):
+        self.server.bind(("", self.port))
+        self.server.listen(5)
+        
+        while True:
+            (client, address) = self.server.accept()
+            command = client.recv(512)
+            if not command:
+                client.close()
+                continue
+
+            command = command.strip()
+            if len(command) != 2:
+                log("Invalid command:", command, "as", len(command), "is bigger than allowed max 2")
+                client.close()
+                continue
+            client.send("".join(self.serial_command(command)))
+            client.close()
+
+
+def main():
+    tty = None
+    if len(sys.argv) > 1:
+        tty = sys.argv[1]
+
+    try:
+        server = PlugServer(tty=tty)
+    except serial.serialutil.SerialException as err:
+        log("Failed to connect to serial port:", err)
+        return 1
+    log("Starting plugd server")
+    try:
+        server.run_forever()
+    except KeyboardInterrupt:
+        pass
+    server.close()
+    log("Exiting")
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())

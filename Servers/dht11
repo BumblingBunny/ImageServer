@@ -1,0 +1,77 @@
+#!/usr/bin/python
+"""
+The board this connects to is a Polulu A-Star 32U4 Micro, a (very
+slightly advanced but) fantastic little arduino-compatible board for
+sensor projects, and no doubt others, connected to a DHT11
+sensor. Notably, it doesn't suffer from the "reset on serial connect"
+difficulty the stock arduinos do. None the less to avoid connecting
+over and over in case the board changes and to serialise access and
+simplify access, this acts as an intermediary.
+
+"""
+
+
+import os
+import socket
+from multiprocessing import Process, Value
+from ctypes import *
+
+def reader(tty, baud, humidity, temperature):
+    import serial
+    if tty is None:
+        for i in range(0,9):
+            maybe = "/dev/ttyACM%i" % i
+            if os.path.exists(maybe):
+                tty = maybe
+                break
+    if baud is None:
+        baud = 9600
+
+    port = serial.Serial(tty, baud)
+    while True:
+        line = port.readline()
+        if not line:
+            continue
+        elif line.startswith("Humidity:"):
+            humidity.value = float(line.split()[1][:-1])
+        elif line.startswith("Temperature:"):
+            temperature.value = float(line.split()[1][:-1])
+        elif "OVER" in line:
+            continue
+
+def run_forever(server):
+    humidity = Value("d", 0.0)
+    temperature = Value("d", 0.0)
+
+    sensor = Process(target=reader, args=("/dev/ttyACM0", 9600, humidity, temperature))
+    sensor.start()
+    server.bind(("", 3020))
+    server.listen(5)
+
+    print "Online"
+    while True:
+        (client, address) = server.accept()
+        command = client.recv(512)
+        print "Received", repr(command)
+        if command.startswith("t"):
+            print "    Interpreted as temperature"
+            client.send("%.2f" % temperature.value)
+        elif command.startswith("h"):
+            print "    Interpreted as humidity"
+            client.send("%.2f" % humidity.value)
+        else:
+            print "    Interpreted as garbage"
+        client.close()
+
+def main():
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        run_forever(server)
+    except KeyboardInterrupt:
+        pass
+
+    server.shutdown(socket.SHUT_RDWR)
+    server.close()
+
+if __name__ == "__main__":
+    main()
