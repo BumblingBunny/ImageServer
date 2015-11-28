@@ -1,4 +1,4 @@
-# Web interface for environmental monitoring
+# Environmental monitoring and control
 
 This is the web component of a basic system I created for myself to
 monitor and control the pre-season started seedlings I grow. It runs
