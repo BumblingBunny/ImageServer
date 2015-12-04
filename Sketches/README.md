@@ -1,10 +1,10 @@
 # Arduino sketches
 
 ## HumTemPol.pde
-You'll have to adapt this sketch to your arduino board and get the
-Adafruit DHT11 libs. Of course, you'll also need an arduino compatible
-board with a plugged-in DHT11 (watch the pin config)
+
+Very simple sketch to return humidity/temperature readings on
+demand. Running on a A-Star 32U4 Micro with a DHT22
 
 ## AutoPlug.pde
-The build for my power box will require further explanation, but in
-short: this is a sketch that controls a relay board.
+Sketch to control a relay board over serial. Running on Arduino Nano
+clone.
