@@ -2,12 +2,22 @@ import picamera
 
 from io import BytesIO
 from fractions import Fraction
-from time import sleep, strftime
+from time import strftime
 
-from Sensors import hum_tem
-from PlugD import PlugD
+try:
+    from Sensors import hum_tem
+except ImportError:
+    pass
 
+try:
+    from PlugD import PlugD
+except ImportError:
+    pass
+
+# Attributes in CAMERA_SETTINGS are reset after a function decorated
+# with @preseve_state
 CAMERA_SETTINGS = ["framerate", "shutter_speed", "exposure_mode", "iso", "hflip", "vflip", "annotate_text"]
+
 
 def preserve_state(func):
     def wrapped(self, *args, **kwargs):
@@ -30,10 +40,9 @@ class Camera(object):
         self.resolution = resolution
         self.start_camera()
         self.image_cache = None
-        self.plug = PlugD()
 
-    def _annotate_text(self):
-        return strftime("%H:%M ") + " ".join(hum_tem())
+    def annotate_text(self):
+        return strftime("%H:%M")
 
     def start_camera(self):
         self.camera = picamera.PiCamera()
@@ -57,7 +66,7 @@ class Camera(object):
             return "Camera started"
         else:
             return "Camera already started"
-    
+
     def status(self):
         result = "Camera status: "
         if self.camera_open:
@@ -68,22 +77,34 @@ class Camera(object):
 
     @preserve_state
     def quickshot(self):
-        if self.plug.lights_on():
-            img = BytesIO()
-            self.camera.annotate_text = self._annotate_text()
-            self.camera.capture(img, format="jpeg")
-            return img.getvalue()
-        else:
-            return self.snapshot()
-    
+        img = BytesIO()
+        self.camera.annotate_text = self.annotate_text()
+        self.camera.capture(img, format="jpeg")
+        return img.getvalue()
+
     @preserve_state
-    def snapshot(self, framerate = Fraction(1, 6), shutter_speed = 6000000, exposure_mode="off", iso=800):
+    def snapshot(self, framerate=Fraction(1, 6), shutter_speed=6000000, exposure_mode="off", iso=800):
         img = BytesIO()
         self.camera.framerate = framerate
         self.camera.shutter_speed = shutter_speed
         self.camera.exposure_mode = exposure_mode
-        self.camera.iso = iso 
-        self.camera.annotate_text = self._annotate_text()
+        self.camera.iso = iso
+        self.camera.annotate_text = self.annotate_text()
         self.camera.capture(img, "jpeg")
 
         return img.getvalue()
+
+
+class HumTemCamera(Camera):
+    def __init__(self, *args, **kwargs):
+        super(HumTemCamera, self).__init__(*args, **kwargs)
+        self.plug = PlugD()
+
+    def quickshot(self):
+        if self.plug.lights_on():
+            return super(HumTemCamera, self).quickshot()
+        else:
+            return self.snapshot()
+
+    def annotate_text(self):
+        return "%s %s" % ((super(HumTemCamera, self).annotate_text(), " ".join(hum_tem())))

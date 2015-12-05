@@ -16,6 +16,7 @@ if "TREEBUG" in os.environ:
     import pstats
     from StringIO import StringIO
 
+
 def main():
     if "TREEBUG" in os.environ:
         last_int = 0
@@ -31,8 +32,8 @@ def main():
                 output = StringIO()
                 ps = pstats.Stats(prof, stream=output).sort_stats("cumulative")
                 ps.print_stats()
-                print "\n".join([line for line in output.getvalue().splitlines() \
-                                     if not ( "/usr/lib" in line or "{" in line )])
+                print "\n".join([line for line in output.getvalue().splitlines()
+                                 if not ("/usr/lib" in line or "{" in line)])
                 output.close()
                 prof = Profile()
                 last_int = time.time()

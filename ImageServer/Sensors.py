@@ -10,4 +10,4 @@ def hum_tem(host="localhost", port=3020):
     sensor.send("temperature")
     tem = sensor.recv(512)
 
-    return hum+"%", tem+"C"
+    return hum + "%", tem + "C"

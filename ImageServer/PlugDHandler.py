@@ -1,9 +1,10 @@
 import os
 import time
 from PlugD import PlugD
-from PlugDImageAnnotator import PlugIcon
+from ImageAnnotator import PlugIcon
 from StringIO import StringIO
 from Sensors import hum_tem
+
 
 class PlugDHandler(object):
     def __init__(self):
@@ -25,12 +26,11 @@ class PlugDHandler(object):
                     result.write(line)
         return result.getvalue()
 
-
     def button_list(self, output):
         states = self.plug.status()
         for state in states:
-            output.write("<a class=\"plug_button\" href=\"toggle/"+state.name+"\">")
-            output.write("<img class=\"plug_icon\" src=\"icon/"+state.name+"\" alt=\""+state.name+"\" /></a>")
+            output.write("<a class=\"plug_button\" href=\"toggle/%s\">" % (state.name))
+            output.write("<img class=\"plug_icon\" src=\"icon/{0}\" alt=\"{0}\" /></a>".format(state.name))
 
     def add_environment(self, output):
         output.write(time.strftime("%H:%M ") + " ".join(hum_tem()))
@@ -51,7 +51,7 @@ class PlugDHandler(object):
         if com not in com_table:
             return False
         com = com_table[com]
-        
+
         states = self.plug.status()
         if len([state for state in states if state.name == target]) != 1:
             return False

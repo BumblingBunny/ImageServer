@@ -5,6 +5,7 @@ Module to talk to plugd
 import socket
 import os
 
+
 SLOT_NAMES = [
     "Broken",
     "Warm Light",
@@ -14,7 +15,9 @@ SLOT_NAMES = [
     "Extractor"
 ]
 
+
 G_PLUGD = None
+
 
 class PlugStatus(object):
     def __init__(self, status_line):
@@ -23,11 +26,14 @@ class PlugStatus(object):
         self.on = self.state == "LOW"
         self.name = SLOT_NAMES[self.pos]
 
+
 def PlugD(host="localhost", port=3019):
     """
-    To things to note:
-    * Yes, this is thread safe. Creating the global object a few times
-      does no harm, this is just to aboud doing it over and over again.
+    Two things to note:
+
+    * Yes, this is "thread safe". Creating the global object a few
+      times does no harm, this is just to avoid doing it over and over
+      again.
     * Yes, as it is currently that means only one plugd can be spoken
       to, every subsequent attempt to instantiate one yields whichever
       config G_PLUGD happened to get
@@ -36,6 +42,7 @@ def PlugD(host="localhost", port=3019):
     if G_PLUGD is None:
         G_PLUGD = _PlugD(host, port)
     return G_PLUGD
+
 
 class _PlugD(object):
     def __init__(self, host="localhost", port=3019):
@@ -92,9 +99,9 @@ class _PlugD(object):
         except:
             return None
         if enable:
-            return self.send_command("e"+str(pos))
+            return self.send_command("e" + str(pos))
         else:
-            return self.send_command("d"+str(pos))
+            return self.send_command("d" + str(pos))
 
     def enable(self, slot):
         "Enables the slot (by name or number)"

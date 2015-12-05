@@ -1,9 +1,9 @@
 import BaseHTTPServer
 import os
 import urllib
-from PlugDImageAnnotator import PlugDImageAnnotator as PAD
+from ImageAnnotator import PlugDImageAnnotator as ImageAnnotator
 from PlugDHandler import PlugDHandler
-from Camera import Camera
+from Camera import HumTemCamera as Camera
 from Sensors import hum_tem
 
 """
@@ -38,8 +38,7 @@ if os.environ["HOW_TO_PARALLEL"] == "threading":
     from SocketServer import ThreadingMixIn as ParallelMixIn
     from threading import Lock
     from threading import current_thread
-    def id_finder():
-        return current_thread().ident
+    id_finder = lambda: current_thread().ident
 elif os.environ["HOW_TO_PARALLEL"] == "forking":
     print "Using multi-processing"
     from SocketServer import ForkingMixIn as ParallelMixIn
@@ -48,20 +47,10 @@ elif os.environ["HOW_TO_PARALLEL"] == "forking":
 else:
     raise ValueError()
 
+
 G_LOCKS = {}
 G_LOCKS_LOCK = Lock()
 
-def safety(func):
-    def wrapped(self, *args, **kwargs):
-        result = None
-        try:
-            result = func(self, *args, **kwargs)
-        except Exception as err:
-            print self.path, "failed", err
-            self.send_error(500)
-        else:
-            return result
-    return wrapped
 
 def serialize(lock_group):
     """
@@ -97,7 +86,7 @@ class TreeHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         those that do. Flags are translated into a dict."""
         bare = []
         flags = {}
-        
+
         for arg in args:
             if not "=" in arg:
                 bare.append(arg)
@@ -220,7 +209,6 @@ class TreeHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         self.wfile.write(open(target, 'r').read())
 
-
     def handle_snapshot(self, args):
         if not args:
             self.handle_snapshot_normal()
@@ -231,7 +219,6 @@ class TreeHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.handle_snapshot_with_parms(**flags)
         except TypeError:
             self.send_error(500)
-
 
     def handle_sensors(self, args):
         if not args:
@@ -251,9 +238,8 @@ class TreeHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.content_type("text/plain")
         self.refresh(10)
         self.start_response()
-        
+
         self.wfile.write("RH: %s\r\nT : %s\r\n" % (hum, tem))
-            
 
     def handle_snapshot_normal(self):
         self.send_response(200)
@@ -261,7 +247,7 @@ class TreeHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.content_type()
         self.refresh(10)
         self.start_response()
-        self.wfile.write(PAD(G_CAMERA.quickshot()).annotate())
+        self.wfile.write(ImageAnnotator(G_CAMERA.quickshot()).annotate())
 
     def handle_snapshot_with_parms(self, **kwargs):
         self.send_response(200)
@@ -287,7 +273,7 @@ class TreeHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def auth(self):
         """ Ensure all requests are authenticated properly """
-        if self.headers.getheader('Authorization') == None:
+        if self.headers.getheader('Authorization') is None:
             self.require_auth()
             return False
         elif self.headers.getheader('Authorization') == "Basic ****************":
@@ -303,7 +289,6 @@ class TreeHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.content_type('text/plain')
         self.start_response()
         self.wfile.write("GNU Terry Pratchet")
-        
 
     def do_GET(self):
         if not self.auth() is True:
@@ -313,7 +298,7 @@ class TreeHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         if "_" in path[0]:
             self.return_error(404)
 
-        handler = "handle_"+path[0]
+        handler = "handle_%s" % (path[0])
         if hasattr(self, handler):
             handler_func = getattr(self, handler)
             if not callable(handler_func):
@@ -323,10 +308,11 @@ class TreeHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
-class ParallelHTTPServer(ParallelMixIn, BaseHTTPServer.HTTPServer):
-    pass
 
-def serve(port=16328):
+def serve(port=8008):
+    class ParallelHTTPServer(ParallelMixIn, BaseHTTPServer.HTTPServer):
+        pass
+
     httpd = ParallelHTTPServer(("", port), TreeHandler)
     print "Online"
     try:
