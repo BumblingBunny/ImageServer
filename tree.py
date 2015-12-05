@@ -1,14 +1,8 @@
 import sys
 import os
 
-HOW_TO_PARALLEL = "threading"
+from ImageServer.RequestHandler import serve
 
-if "HOW_TO_PARALLEL" in os.environ:
-    HOW_TO_PARALLEL = os.environ['HOW_TO_PARALLEL']
-else:
-    os.environ["HOW_TO_PARALLEL"] = HOW_TO_PARALLEL
-
-from ImageServer.CameraHandler import serve
 
 if "TREEBUG" in os.environ:
     import time
@@ -39,5 +33,6 @@ def main():
                 last_int = time.time()
     else:
         serve()
+
 if __name__ == "__main__":
     main()
