@@ -3,8 +3,7 @@ import os
 from ConfigParser import ConfigParser
 
 """
-This implements the general request "routing" and ties the various
-bits that create data together. It also handles authentication.
+Modular request handler.
 
 The config contains sections called [handler:xyz]. This registers a
 handler for any request to /xyz/ or below to be handled by the class
@@ -17,14 +16,19 @@ e.g. [handler:mrtg/images] would never match, instead RequestHandler
 would look for a handler matchig "mrtg".
 """
 
+class RQError(Exception):
+    pass
+
 
 ## G_CONFIG is deleted once initial configuration is complete
 G_CONFIG = None
 
-## G_HANDLERS maps "base" bits of URLs to their handlers
+## G_HANDLERS maps "base" bits of URLs to their handlers. This global
+## is the easy way around BaseHTTPRequestHandler's stateless,
+## init-less nature.
 G_HANDLERS = {}
 
-# Configure and load plugins
+## Load config
 def load_config():
     global G_CONFIG
 
@@ -32,11 +36,11 @@ def load_config():
     G_CONFIG.read(os.path.expanduser("~/.plug/web.conf"))
 load_config()
 
-# Configure parallelism. Plugins may need to know how to synchronise
-# their actions and thus need a locking mechanism, hence configure
-# this before loading the modules.
+## Configure parallelism. Plugins may need to know how to synchronise
+## their actions and thus need a locking mechanism, hence configure
+## this before loading the modules.
 if not "parallel" in G_CONFIG.options("baseconfig"):
-    print "Running without parallelism"
+    print "Running without parallelism, set \"parallel\" in the baseconfig to fix this"
     class ParallelMixIn:
         pass
     class Lock:
@@ -54,33 +58,52 @@ else:
         from SocketServer import ForkingMixIn as ParallelMixIn
         from multiprocessing import Lock
     else:
-        raise ValueError("No such parallel model: %s" % (HOW_TO_PARALLEL))
+        raise RQError("No such parallel model: %s" % (G_CONFIG.get("baseconfig", "parallel")))
 
-# Load the handlers
+
+## Load the handlers
+def get_module(section):
+    mod_name = G_CONFIG.get(section, "module")
+    mod_location = mod_name
+    if "location" in G_CONFIG.options(section):
+        mod_location = G_CONFIG.get(section, "location")
+    mod_loc = __import__(mod_location, globals(), locals(), [], -1)
+
+    mod = getattr(mod_loc, mod_name)
+    options = dict([(x, G_CONFIG.get(section, x)) for x in G_CONFIG.options(section)])
+    return mod, options
+
+
 def load_modules():
     global G_HANDLERS
+    ## auth module
+    print "Loading auth module"
+    mod, options = get_module("auth")
+    try:
+        G_HANDLERS["__auth__"] = mod(**options)
+    except Exception as err:
+        raise RQError("Auth init failed: " + str(err))
+
+    ## handler modules
     for section in [x for x in G_CONFIG.sections() if x.startswith("handler:")]:
         baseurl = section.split(":", 1)[1]
-        mod_name = G_CONFIG.get(section, "module")
-        if "location" in G_CONFIG.options(section):
-            location = G_CONFIG.get(section, "location")
-        else:
-            location = mod_name
+        print "Loading", section
+        try:
+            mod, options = get_module(section)
+            G_HANDLERS[baseurl] = mod(baseurl=baseurl, options=options, lock=Lock)
+        except Exception as err:
+            raise RQError("Failed to load module: " + str(err))
 
-        print "Loading handler", mod_name, "for", baseurl
-        mod = __import__(mod_name, globals(), locals(), [], -1)
-        options = dict([(x, G_CONFIG.get(section, x)) for x in G_CONFIG.options(section)])
-        G_HANDLERS[baseurl] = getattr(mod, mod_name)(baseurl=baseurl, options=options, lock=Lock)
 load_modules()
-
 del G_CONFIG
+
 
 class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def version_string(self):
         """ Disguise software used """
         return "GNU Terry Pratchet"
 
-    # Utilities
+    ## Utilities
     def nocache(self):
         """ Advise against caching """
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -116,44 +139,37 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_header("Content-Type", c_type)
 
     def text_response(self, text, encoding="html"):
+        """
+        Convenience function to send a text response. Defaults to HTML
+        as content type.
+        """
         self.send_response(200)
         self.content_type("text/%s" % (encoding))
         self.start_response()
         self.wfile.write(text)
 
     def image_response(self, data, encoding="jpeg"):
+        """
+        Convenience function to send an image response, defaults to
+        JPEG as content type.
+        """
         self.send_response(200)
         self.content_type("image/%s" % (encoding.lower()))
         self.start_response()
         self.wfile.write(data)
 
     def redirect_response(self, target, text="And now for something completely different..."):
+        """
+        Convenience method for a 303 redirect response
+        """
         self.send_response(303)
         self.send_header("Location", target)
         self.start_response()
         self.wfile.write(text)
 
-    def auth(self):
-        """ Ensure all requests are authenticated properly """
-        if self.headers.getheader('Authorization') is None:
-            self.require_auth()
-            return False
-        elif self.headers.getheader('Authorization') == "Basic ******************"
-            return True
-        else:
-            self.require_auth()
-            return False
-        return False
-
-    def require_auth(self):
-        self.send_response(401)
-        self.send_header('WWW-Authenticate', 'Basic realm=\"Mon\"')
-        self.content_type('text/plain')
-        self.start_response()
-        self.wfile.write("GNU Terry Pratchet")
-
     def do_GET(self):
-        if not self.auth() is True:
+        if G_HANDLERS["__auth__"].handle(self) is not True:
+            G_HANDLERS["__auth__"].auth_required_response(self)
             return
 
         path = self.path.split("/")[1:]

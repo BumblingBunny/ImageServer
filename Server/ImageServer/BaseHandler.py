@@ -1,4 +1,8 @@
 def needs_args(count):
+    """
+    Decorator for handler style functions. Checks that the "args"
+    argument has at least "count" non-empty elements.
+    """
     def enforce_args(func):
         def wrapped(self, req, args):
             if len(args) < count:
