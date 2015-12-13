@@ -12,7 +12,7 @@ to force myself to clean it up a bit.
 This contains a python BaseHTTPServer based web server providing
 access to the camera as well as the arduino frontends via a simple web
 interface. It is configured via [web.conf](dot-plug/web.conf). To use
-it, simply run [tree.py](server/tree.py). By default, it will bind to
+it, simply run [tree.py](Server/tree.py). By default, it will bind to
 port 8008, enforce Basic Auth and then return nothing but 404s, it
 needs handlers to be specified in the web.conf to be useful.
 
@@ -30,3 +30,28 @@ Speaking of arduino, the sketches for them are here.
 
 ## mrtg
 My mrtg config and the client script for the sensor which feeds mrtg.
+
+# Installation
+
+Minimum requirements for this to be useful are a raspberry pi with a
+camera module. The web.conf for this setup looks like this:
+
+```ini
+[baseconfig]
+parallel: threading
+port: 8008
+
+[auth]
+module: Authenticator
+user: aber
+pwd: lour
+
+[handler:camera]
+module: CameraHandler
+camera: Camera
+resolution: 1024x768
+```
+
+This lets you access a 1024x768 snapshot at *server*:8008/camera/ with a
+timestamp on it after authenticating with user "aber" and password
+"lour".
