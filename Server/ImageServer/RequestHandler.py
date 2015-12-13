@@ -99,6 +99,10 @@ del G_CONFIG
 
 
 class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        self._header_stash = {}
+        BaseHTTPServer.BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
+
     def version_string(self):
         """ Disguise software used """
         return "GNU Terry Pratchet"
@@ -106,9 +110,9 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     ## Utilities
     def nocache(self):
         """ Advise against caching """
-        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
-        self.send_header("Pragma", "no-cache")
-        self.send_header("Expires", "0")
+        self._header_stash["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        self._header_stash["Pragma"] = "no-cache"
+        self._header_stash["Expires"] = 0
 
     def argsplit(self, args):
         """ Takes a list of arguments and splits them into "bare"
@@ -127,16 +131,18 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def refresh(self, refresh_time=5):
         """ Advise a refresh, by default after 5 seconds"""
-        self.send_header("Refresh", refresh_time)
+        self._header_stash["Refresh"] = refresh_time
 
     def start_response(self):
         """ Alias for end_headers, wrapped in case I want to add
         certain headers on all requests """
+        for header, value in self._header_stash.items():
+            self.send_header(header, value)
         self.end_headers()
 
     def content_type(self, c_type="image/jpeg"):
         """ Short hand to set the content type """
-        self.send_header("Content-Type", c_type)
+        self._header_stash["Content-Type"] = c_type
 
     def text_response(self, text, encoding="html"):
         """
@@ -173,8 +179,6 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return
 
         path = self.path.split("/")[1:]
-        if "_" in path[0]:
-            self.return_error(404)
 
         if path[0] in G_HANDLERS:
             G_HANDLERS[path[0]].handle(self, path[1:])
