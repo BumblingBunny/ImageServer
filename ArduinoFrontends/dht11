@@ -2,14 +2,12 @@
 """
 The board this connects to is a Polulu A-Star 32U4 Micro, a (very
 slightly advanced but) fantastic little arduino-compatible board for
-sensor projects, and no doubt others, connected to a DHT11
+sensor projects, and no doubt others, connected to a DHT22
 sensor. Notably, it doesn't suffer from the "reset on serial connect"
 difficulty the stock arduinos do. None the less to avoid connecting
 over and over in case the board changes and to serialise access and
 simplify access, this acts as an intermediary.
-
 """
-
 
 import os
 import socket
